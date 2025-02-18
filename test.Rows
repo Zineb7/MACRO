@@ -16,3 +16,10 @@ For Each currentRow In dataRange.Rows
     ' 📌 Écrit la requête dans le fichier
     Print #fileNum, sqlQuery
 Next currentRow
+
+
+
+
+
+
+Merci de nous fournir les fichiers Morning Check correspondant aux dates ci-dessous afin de les intégrer dans l’outil CHECKAPP.
