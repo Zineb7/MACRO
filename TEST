@@ -1,1 +1,8 @@
-Merci de nous fournir les fichiers des morning check correspondants au dates ce dessous afin de les intégrer sur l’outil CHECKAPP.
+UPDATE votre_table
+SET nouvelle_date = 
+    CONCAT(
+        SUBSTRING(date_colonne, 5, 4), '-',  -- Année (AAAA)
+        SUBSTRING(date_colonne, 3, 2), '-',  -- Mois (MM)
+        SUBSTRING(date_colonne, 1, 2)        -- Jour (JJ)
+    )
+WHERE LENGTH(date_colonne) = 8;  -- S'assurer que seules les valeurs correctes sont modifiées
