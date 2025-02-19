@@ -111,3 +111,77 @@ NextFile:
 
     MsgBox "Conversion terminée. Les fichiers SQL sont créés dans : " & dossier, vbInformation
 End Sub
+
+
+
+
+
+Sub GenerateSQLFromMultipleFiles()
+    Dim folderPath As String
+    Dim fileName As String
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim fileNum As Integer
+    Dim sqlQuery As String
+    Dim dataRange As Range
+    Dim currentRow As Range
+    Dim cell As Range
+    Dim dateValue As String
+    Dim outputFileName As String
+ 
+    ' ?? Définir le dossier contenant les fichiers Excel
+    folderPath = "C:\Users\taktourb\Downloads\MO\" ' Modifier avec le bon chemin
+ 
+    ' ?? Parcourir tous les fichiers Excel dans le dossier
+    fileName = Dir(folderPath & "*.xlsx")
+ 
+    Do While fileName <> ""
+        ' ?? Ouvrir chaque fichier
+        Set wb = Workbooks.Open(folderPath & fileName)
+        Set ws = wb.Sheets(1) ' Modifier si le nom de la feuille est différent
+ 
+        ' ?? Lire la valeur de la colonne R3 pour la date
+        dateValue = Format(ws.Range("R3").Value, "ddmmyyyy")
+
+ 
+        ' ?? Définir le fichier de sortie pour les requêtes SQL
+        outputFileName = folderPath & "insert_statements_" & fileName & "_" & dateValue & ".txt"
+        fileNum = FreeFile
+        Open outputFileName For Output As #fileNum
+ 
+        ' ?? Définir la plage de données à traiter
+        Set dataRange = ws.Range("C8:Q36") ' Adapter si la plage varie
+ 
+        ' ?? Générer les requêtes SQL pour chaque ligne
+        For Each currentRow In dataRange.Rows
+            sqlQuery = "INSERT INTO morningcheck (`app`, `filial1`, `filial1`, `filial2`, `filial3`, `filial4`, `filial5`, `filial6`, `filial7`, `filial8`, `filial9`, `filial10`, `filial11`, `filial12`, `filial13`, `date`)  VALUES ("
+ 
+            ' ?? Lire les valeurs de chaque cellule de la ligne
+            For Each cell In currentRow.Cells
+                If IsEmpty(cell.Value) Or cell.Value = "NA" Then
+                    sqlQuery = sqlQuery & "'4', "  ' Remplace NA par 4
+                Else
+                    sqlQuery = sqlQuery & "'" & cell.Value & "', "
+                End If
+            Next cell
+ 
+            ' ?? Ajouter la date et fermer la requête
+            sqlQuery = sqlQuery & "'" & dateValue & "');"
+ 
+            ' ?? Écrire la requête dans le fichier
+            Print #fileNum, sqlQuery
+        Next currentRow
+ 
+        ' ?? Fermer le fichier de sortie
+        Close #fileNum
+ 
+        ' ?? Fermer le fichier Excel sans sauvegarde
+        wb.Close False
+ 
+        ' ?? Passer au fichier suivant
+        fileName = Dir()
+    Loop
+ 
+    MsgBox "Génération des requêtes terminée !", vbInformation
+End Sub
+
