@@ -6,3 +6,108 @@
                     sqlQuery = sqlQuery & "'" & cell.Value & "', "
                 End If
             Next cell
+
+
+
+Sub ConvertirExcelEnSQL_FilialesComplexes()
+    Dim dossier As String, fichier As String
+    Dim wb As Workbook, ws As Worksheet
+    Dim fileNum As Integer, sqlFile As String
+    Dim sqlQuery As String, dataRange As Range
+    Dim currentRow As Range, cell As Range
+    Dim dateValue As String
+    Dim nomFichier As String
+    Dim headers As Range, lastCol As Integer
+    Dim colNames As String
+    Dim i As Integer
+    Dim filialeCols As Range
+    Dim firstDataRow As Integer
+
+    ' Définir le dossier contenant les fichiers Excel
+    dossier = "C:\chemin\vers\les\fichiers\"
+
+    ' Récupérer le premier fichier Excel du dossier
+    fichier = Dir(dossier & "*.xlsx")
+
+    ' Boucle sur tous les fichiers Excel du dossier
+    Do While fichier <> ""
+        ' Ouvrir le fichier Excel
+        Set wb = Workbooks.Open(dossier & fichier)
+        Set ws = wb.Sheets(1) ' Modifier si besoin
+
+        ' Vérifier que la cellule R3 contient une date
+        If IsDate(ws.Range("R3").Value) Then
+            dateValue = Format(ws.Range("R3").Value, "yyyy-mm-dd")
+        Else
+            MsgBox "Erreur : la cellule R3 ne contient pas une date valide dans le fichier " & fichier
+            wb.Close False
+            fichier = Dir() ' Passer au fichier suivant
+            GoTo NextFile
+        End If
+
+        ' Extraire le nom du fichier sans extension
+        nomFichier = Mid(fichier, 4, 8) ' Extrait GA2025MMJJ
+
+        ' Trouver dynamiquement la ligne contenant les titres des colonnes des filiales (ex: ligne 7)
+        Set filialeCols = ws.Range(ws.Cells(7, 4), ws.Cells(7, ws.Cells(7, Columns.Count).End(xlToLeft).Column))
+
+        ' Détection de la dernière colonne des filiales
+        lastCol = filialeCols.Cells(filialeCols.Cells.Count).Column
+
+        ' Stocker les noms des colonnes des filiales
+        colNames = "[Filiale], "
+        For Each cell In filialeCols
+            colNames = colNames & "[" & cell.Value & "], "
+        Next cell
+
+        ' Supprimer la dernière virgule
+        colNames = Left(colNames, Len(colNames) - 2)
+
+        ' Définir le fichier SQL de sortie
+        sqlFile = dossier & "insert_" & nomFichier & ".sql"
+        fileNum = FreeFile
+        Open sqlFile For Output As #fileNum
+
+        ' Définir la première ligne contenant les données (ex: ligne 8)
+        firstDataRow = 8
+        Set dataRange = ws.Range(ws.Cells(firstDataRow, 2), ws.Cells(ws.Cells(Rows.Count, 2).End(xlUp).Row, lastCol))
+
+        ' Boucle sur chaque ligne de données
+        For Each currentRow In dataRange.Rows
+            sqlQuery = "INSERT INTO morningcheck (" & colNames & ", date) VALUES ("
+
+            ' Ajouter le nom de la filiale (colonne B)
+            sqlQuery = sqlQuery & "'" & currentRow.Cells(1, 1).Value & "', "
+
+            ' Boucle sur chaque cellule de la ligne
+            For Each cell In currentRow.Cells
+                If cell.Column >= 4 Then ' On ignore les colonnes avant la première filiale
+                    If IsEmpty(cell.Value) Or cell.Value = "NA" Then
+                        sqlQuery = sqlQuery & "'4', "  ' Remplace NA par 4
+                    Else
+                        sqlQuery = sqlQuery & "'" & cell.Value & "', "
+                    End If
+                End If
+            Next cell
+
+            ' Supprimer la dernière virgule et ajouter la date
+            sqlQuery = Left(sqlQuery, Len(sqlQuery) - 2) & ", '" & dateValue & "');"
+
+            ' Vérification
+            Debug.Print sqlQuery
+
+            ' Écrire la requête dans le fichier SQL
+            Print #fileNum, sqlQuery
+        Next currentRow
+
+        ' Fermer le fichier SQL et le fichier Excel
+        Close #fileNum
+        wb.Close False
+
+NextFile:
+        ' Passer au fichier suivant
+        fichier = Dir()
+    Loop
+
+    MsgBox "Conversion terminée. Les fichiers SQL sont créés dans : " & dossier, vbInformation
+End Sub
