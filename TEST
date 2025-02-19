@@ -1,8 +1,8 @@
-UPDATE votre_table
-SET nouvelle_date = 
-    CONCAT(
-        SUBSTRING(date_colonne, 5, 4), '-',  -- Année (AAAA)
-        SUBSTRING(date_colonne, 3, 2), '-',  -- Mois (MM)
-        SUBSTRING(date_colonne, 1, 2)        -- Jour (JJ)
-    )
-WHERE LENGTH(date_colonne) = 8;  -- S'assurer que seules les valeurs correctes sont modifiées
+ ' Boucle sur chaque cellule de la ligne
+            For Each cell In currentRow.Cells
+                If IsEmpty(cell.Value) Or cell.Value = "NA" Then
+                    sqlQuery = sqlQuery & "'4', "  ' Remplace NA par 4
+                Else
+                    sqlQuery = sqlQuery & "'" & cell.Value & "', "
+                End If
+            Next cell
