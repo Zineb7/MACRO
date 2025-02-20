@@ -185,108 +185,95 @@ Sub GenerateSQLFromMultipleFiles()
     MsgBox "Génération des requêtes terminée !", vbInformation
 End Sub
 
-Sub GenerateSQLFromMultipleFiles()
-    Dim folderPath As String
-    Dim fileName As String
-    Dim wb As Workbook
-    Dim ws As Worksheet
-    Dim fileNum As Integer
-    Dim sqlQuery As String
-    Dim dataRange As Range
-    Dim currentRow As Range
-    Dim cell As Range
-    Dim dateValue As String
-    Dim outputFileName As String
-    Dim cleanFileName As String
 
-    ' ?? Définir le dossier contenant les fichiers Excel
-    folderPath = "C:\Users\taktourb\Downloads\MO\" ' Modifier avec le bon chemin
 
-    ' ?? Parcourir tous les fichiers Excel dans le dossier
-    fileName = Dir(folderPath & "*.xlsx")
 
-    Do While fileName <> ""
-        ' ?? Nettoyer le nom du fichier pour éviter les problèmes
-        cleanFileName = Replace(fileName, ".xlsx", "")
 
-        ' ?? Ouvrir chaque fichier
-        On Error Resume Next
-        Set wb = Workbooks.Open(folderPath & fileName)
-        If Err.Number <> 0 Or wb Is Nothing Then
-            MsgBox "Erreur d'ouverture du fichier : " & fileName, vbExclamation
-            Err.Clear
-            fileName = Dir()
-            GoTo NextFile
-        End If
-        On Error GoTo 0
 
-        ' ?? Vérifier si la feuille existe
-        On Error Resume Next
-        Set ws = wb.Sheets(1) ' Modifier si nécessaire
-        If ws Is Nothing Then
-            MsgBox "Erreur : Feuille introuvable dans " & fileName, vbExclamation
-            wb.Close False
-            fileName = Dir()
-            GoTo NextFile
-        End If
-        On Error GoTo 0
 
-        ' ?? Vérifier que R3 contient bien une date
-        If IsDate(ws.Range("R3").Value) Then
-            dateValue = Format(ws.Range("R3").Value, "yyyy-mm-dd") ' Format correct
-        Else
-            MsgBox "Erreur : Date invalide dans " & fileName, vbExclamation
-            wb.Close False
-            fileName = Dir()
-            GoTo NextFile
-        End If
 
-        ' ?? Définir la plage de données à traiter
-        On Error Resume Next
-        Set dataRange = ws.Range("C8:Q36") ' Adapter si la plage varie
-        If dataRange Is Nothing Then
-            MsgBox "Erreur : Plage de données introuvable dans " & fileName, vbExclamation
-            wb.Close False
-            fileName = Dir()
-            GoTo NextFile
-        End If
-        On Error GoTo 0
 
-        ' ?? Définir le fichier de sortie pour les requêtes SQL
-        outputFileName = folderPath & "insert_statements_" & cleanFileName & "_" & dateValue & ".sql"
-        fileNum = FreeFile
-        Open outputFileName For Output As #fileNum
+pip install pandas mysql-connector-python openpyxl
 
-        ' ?? Générer les requêtes SQL pour chaque ligne
-        For Each currentRow In dataRange.Rows
-            sqlQuery = "INSERT INTO morningcheck (`app`, `filial1`, `filial2`, `filial3`, `filial4`, `filial5`, `filial6`, `filial7`, `filial8`, `filial9`, `filial10`, `filial11`, `filial12`, `filial13`, `date`) VALUES ("
 
-            ' ?? Lire les valeurs de chaque cellule de la ligne
-            For Each cell In currentRow.Cells
-                If IsEmpty(cell.Value) Or cell.Value = "NA" Then
-                    sqlQuery = sqlQuery & "'4', "  ' Remplace NA par 4
-                Else
-                    sqlQuery = sqlQuery & "'" & Replace(cell.Value, "'", "''") & "', "
-                End If
-            Next cell
 
-            ' ?? Ajouter la date et fermer la requête (supprimer la dernière virgule)
-            sqlQuery = Left(sqlQuery, Len(sqlQuery) - 2) & ", '" & dateValue & "');"
+import os
+import pandas as pd
+import mysql.connector
+from mysql.connector import Error
 
-            ' ?? Écrire la requête dans le fichier
-            Print #fileNum, sqlQuery
-        Next currentRow
+# Configuration MySQL (à adapter selon votre XAMPP)
+DB_CONFIG = {
+    "host": "localhost",
+    "user": "root",  # Modifier si nécessaire
+    "password": "",   # Modifier si nécessaire
+    "database": "nom_de_votre_base"
+}
 
-        ' ?? Fermer le fichier de sortie
-        Close #fileNum
+# Dossier contenant les fichiers Excel
+folder_path = r"C:\Users\taktourb\Downloads\MO"
 
-        ' ?? Fermer le fichier Excel sans sauvegarde
-        wb.Close False
+# Connexion à MySQL
+def connect_db():
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        if conn.is_connected():
+            print("✅ Connexion réussie à MySQL")
+        return conn
+    except Error as e:
+        print(f"❌ Erreur de connexion : {e}")
+        return None
 
-NextFile:
-        ' ?? Passer au fichier suivant
-        fileName = Dir()
-    Loop
+# Fonction pour insérer les données
+def insert_data(data, conn):
+    cursor = conn.cursor()
+    insert_query = """
+        INSERT INTO morningcheck (app, filial1, filial2, filial3, filial4, filial5, filial6, 
+                                  filial7, filial8, filial9, filial10, filial11, filial12, 
+                                  filial13, date)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+    """
+    try:
+        cursor.executemany(insert_query, data)
+        conn.commit()
+        print(f"✅ {cursor.rowcount} lignes insérées avec succès")
+    except Error as e:
+        print(f"❌ Erreur d'insertion : {e}")
+    finally:
+        cursor.close()
 
-    MsgBox "Génération des requêtes terminée !", vbInformation
-End Sub
+# Lecture des fichiers Excel et traitement
+def process_files():
+    conn = connect_db()
+    if not conn:
+        return
+
+    for file_name in os.listdir(folder_path):
+        if file_name.endswith(".xlsx"):
+            file_path = os.path.join(folder_path, file_name)
+            print(f"📂 Traitement du fichier : {file_name}")
+
+            # Lire l'Excel
+            df = pd.read_excel(file_path, sheet_name=0, skiprows=7, usecols="C:Q")  # Modifier selon la structure
+            df.fillna("4", inplace=True)  # Remplacer NA par 4
+
+            # Lire la date depuis R3
+            date_df = pd.read_excel(file_path, sheet_name=0, usecols="R", nrows=3)
+            try:
+                date_value = pd.to_datetime(date_df.iloc[2, 0]).strftime("%Y-%m-%d")
+            except Exception:
+                print(f"❌ Erreur de date dans {file_name}, fichier ignoré")
+                continue
+
+            # Ajouter la colonne date
+            df["date"] = date_value
+
+            # Convertir en tuples pour l'insertion SQL
+            data_tuples = [tuple(row) for row in df.to_numpy()]
+            insert_data(data_tuples, conn)
+
+    conn.close()
+    print("✅ Traitement terminé !")
+
+# Lancer le traitement
+process_files()
