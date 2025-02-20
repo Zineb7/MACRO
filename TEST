@@ -188,92 +188,64 @@ End Sub
 
 
 
+@echo off
+setlocal enabledelayedexpansion
+
+:: Définition des variables
+set DB_USER=root
+set DB_PASSWORD=mon_mot_de_passe
+set DB_NAME=morning_check_db
+set SQL_FILE=%1
+set LOG_FILE="C:\Scripts_XAMPP\import_log.txt"
+
+echo Importation du fichier: %SQL_FILE% >> %LOG_FILE%
+
+:: Exécuter l'importation SQL avec MySQL (XAMPP)
+"C:\xampp\mysql\bin\mysql.exe" -u %DB_USER% -p%DB_PASSWORD% %DB_NAME% < %SQL_FILE%
+
+:: Vérification de l'importation
+if %errorlevel% neq 0 (
+    echo [ERREUR] %SQL_FILE% n'a pas été importé ! >> %LOG_FILE%
+) else (
+    echo [SUCCÈS] %SQL_FILE% a été inséré correctement. >> %LOG_FILE%
+)
+
+exit /b
 
 
 
 
 
-pip install pandas mysql-connector-python openpyxl
 
 
 
-import os
-import pandas as pd
-import mysql.connector
-from mysql.connector import Error
 
-# Configuration MySQL (à adapter selon votre XAMPP)
-DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",  # Modifier si nécessaire
-    "password": "",   # Modifier si nécessaire
-    "database": "nom_de_votre_base"
-}
 
-# Dossier contenant les fichiers Excel
-folder_path = r"C:\Users\taktourb\Downloads\MO"
 
-# Connexion à MySQL
-def connect_db():
-    try:
-        conn = mysql.connector.connect(**DB_CONFIG)
-        if conn.is_connected():
-            print("✅ Connexion réussie à MySQL")
-        return conn
-    except Error as e:
-        print(f"❌ Erreur de connexion : {e}")
-        return None
 
-# Fonction pour insérer les données
-def insert_data(data, conn):
-    cursor = conn.cursor()
-    insert_query = """
-        INSERT INTO morningcheck (app, filial1, filial2, filial3, filial4, filial5, filial6, 
-                                  filial7, filial8, filial9, filial10, filial11, filial12, 
-                                  filial13, date)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
-    """
-    try:
-        cursor.executemany(insert_query, data)
-        conn.commit()
-        print(f"✅ {cursor.rowcount} lignes insérées avec succès")
-    except Error as e:
-        print(f"❌ Erreur d'insertion : {e}")
-    finally:
-        cursor.close()
 
-# Lecture des fichiers Excel et traitement
-def process_files():
-    conn = connect_db()
-    if not conn:
-        return
 
-    for file_name in os.listdir(folder_path):
-        if file_name.endswith(".xlsx"):
-            file_path = os.path.join(folder_path, file_name)
-            print(f"📂 Traitement du fichier : {file_name}")
 
-            # Lire l'Excel
-            df = pd.read_excel(file_path, sheet_name=0, skiprows=7, usecols="C:Q")  # Modifier selon la structure
-            df.fillna("4", inplace=True)  # Remplacer NA par 4
 
-            # Lire la date depuis R3
-            date_df = pd.read_excel(file_path, sheet_name=0, usecols="R", nrows=3)
-            try:
-                date_value = pd.to_datetime(date_df.iloc[2, 0]).strftime("%Y-%m-%d")
-            except Exception:
-                print(f"❌ Erreur de date dans {file_name}, fichier ignoré")
-                continue
+@echo off
+setlocal enabledelayedexpansion
 
-            # Ajouter la colonne date
-            df["date"] = date_value
+:: Dossier contenant les fichiers SQL
+set SQL_FOLDER="C:\Users\taktourb\Downloads\MO"
+set LOG_FILE="C:\Scripts_XAMPP\import_log.txt"
 
-            # Convertir en tuples pour l'insertion SQL
-            data_tuples = [tuple(row) for row in df.to_numpy()]
-            insert_data(data_tuples, conn)
+echo Démarrage de l'importation... > %LOG_FILE%
 
-    conn.close()
-    print("✅ Traitement terminé !")
+:: Parcourir tous les fichiers SQL et les importer un par un
+for %%F in (%SQL_FOLDER%\*.sql) do (
+    echo Traitement du fichier: %%F...
+    call "C:\Scripts_XAMPP\import_data.bat" "%%F"
+)
 
-# Lancer le traitement
-process_files()
+echo Importation terminée ! Voir le fichier de log : %LOG_FILE%
+exit /b
+
+
+
+
+
